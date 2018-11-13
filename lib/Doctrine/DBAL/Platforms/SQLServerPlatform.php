@@ -530,6 +530,11 @@ SQL
                 continue;
             }
 
+            // Do not add query part if only unsigned has changed.
+            if ($columnDiff->hasChanged('unsigned') && count($columnDiff->changedProperties) === 1) {
+                continue;
+            }
+
             $requireDropDefaultConstraint = $this->alterColumnRequiresDropDefaultConstraint($columnDiff);
 
             if ($requireDropDefaultConstraint) {
