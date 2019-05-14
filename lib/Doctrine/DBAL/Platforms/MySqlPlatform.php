@@ -2,7 +2,6 @@
 
 namespace Doctrine\DBAL\Platforms;
 
-use Doctrine\DBAL\Schema\ColumnDiff;
 use Doctrine\DBAL\Schema\ForeignKeyConstraint;
 use Doctrine\DBAL\Schema\Identifier;
 use Doctrine\DBAL\Schema\Index;
@@ -159,7 +158,8 @@ class MySqlPlatform extends AbstractPlatform
                    'SEQ_IN_INDEX AS Seq_in_index, COLUMN_NAME AS Column_Name, COLLATION AS Collation, ' .
                    'CARDINALITY AS Cardinality, SUB_PART AS Sub_Part, PACKED AS Packed, ' .
                    'NULLABLE AS `Null`, INDEX_TYPE AS Index_Type, COMMENT AS Comment ' .
-                   'FROM information_schema.STATISTICS WHERE TABLE_NAME = ' . $table . ' AND TABLE_SCHEMA = ' . $currentDatabase;
+                   'FROM information_schema.STATISTICS WHERE TABLE_NAME = ' . $table . ' AND TABLE_SCHEMA = ' . $currentDatabase .
+                   ' ORDER BY SEQ_IN_INDEX ASC';
         }
 
         return 'SHOW INDEX FROM ' . $table;
@@ -377,7 +377,22 @@ class MySqlPlatform extends AbstractPlatform
         return 'SELECT COLUMN_NAME AS Field, COLUMN_TYPE AS Type, IS_NULLABLE AS `Null`, ' .
                'COLUMN_KEY AS `Key`, COLUMN_DEFAULT AS `Default`, EXTRA AS Extra, COLUMN_COMMENT AS Comment, ' .
                'CHARACTER_SET_NAME AS CharacterSet, COLLATION_NAME AS Collation ' .
-               'FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ' . $database . ' AND TABLE_NAME = ' . $table;
+               'FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ' . $database . ' AND TABLE_NAME = ' . $table .
+               ' ORDER BY ORDINAL_POSITION ASC';
+    }
+
+    public function getListTableMetadataSQL(string $table, ?string $database = null) : string
+    {
+        return sprintf(
+            <<<'SQL'
+SELECT ENGINE, AUTO_INCREMENT, TABLE_COLLATION, TABLE_COMMENT, CREATE_OPTIONS
+FROM information_schema.TABLES
+WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA = %s AND TABLE_NAME = %s
+SQL
+            ,
+            $database ? $this->quoteStringLiteral($database) : 'DATABASE()',
+            $this->quoteStringLiteral($table)
+        );
     }
 
     /**
@@ -566,7 +581,6 @@ class MySqlPlatform extends AbstractPlatform
                 continue;
             }
 
-            /** @var ColumnDiff $columnDiff */
             $column      = $columnDiff->column;
             $columnArray = $column->toArray();
 
